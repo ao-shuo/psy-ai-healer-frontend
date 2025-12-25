@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
@@ -8,8 +8,27 @@ const router = useRouter()
 const mode = ref<'login' | 'register'>('login')
 const message = ref('')
 const loginForm = ref({ username: '', password: '' })
-const registerForm = ref({ username: '', password: '', fullName: '', email: '' })
+const registerForm = ref({
+  username: '',
+  password: '',
+  fullName: '',
+  email: '',
+  role: 'USER',
+  registrationCode: '',
+})
 const loading = computed(() => authStore.loading)
+const roleOptions = [
+  { label: '普通用户', value: 'USER' },
+  { label: '心理咨询师', value: 'THERAPIST' },
+  { label: '管理员', value: 'ADMIN' },
+]
+const showRegistrationCodeInput = computed(() => registerForm.value.role !== 'USER')
+
+watch(() => registerForm.value.role, (next) => {
+  if (next === 'USER') {
+    registerForm.value.registrationCode = ''
+  }
+})
 
 const selectMode = (next: 'login' | 'register') => {
   mode.value = next
@@ -81,6 +100,26 @@ const handleRegister = async () => {
         <label>
           电子邮箱
           <input type="email" v-model="registerForm.email" placeholder="接收报告" required />
+        </label>
+        <label class="identity-field">
+          <span>身份</span>
+          <div class="identity-select">
+            <select v-model="registerForm.role">
+              <option v-for="option in roleOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+            <span class="identity-pill">{{ roleOptions.find(option => option.value === registerForm.role)?.label }}</span>
+          </div>
+        </label>
+        <label v-if="showRegistrationCodeInput">
+          注册码
+          <input
+            v-model="registerForm.registrationCode"
+            :placeholder="registerForm.role === 'ADMIN' ? '管理员注册码' : '心理咨询师注册码'"
+            :required="showRegistrationCodeInput"
+          />
+          <small>拥有正确的注册码才能申请该身份，注册码可从项目配置或管理员处获取。</small>
         </label>
         <button type="submit" :disabled="loading">{{ loading ? '注册中…' : '注册并登录' }}</button>
       </form>
@@ -162,6 +201,59 @@ const handleRegister = async () => {
   font-size: 0.85rem;
   gap: 0.3rem;
   color: rgba(255, 255, 255, 0.7);
+}
+
+.identity-field span {
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--color-ink-solid);
+}
+
+.identity-select {
+  position: relative;
+  border-radius: 1rem;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: inset 0 0 0 1px rgba(45, 193, 176, 0.25);
+}
+
+.identity-select::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  background: linear-gradient(145deg, rgba(45, 193, 176, 0.35), rgba(125, 214, 255, 0.35));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.identity-select select {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--color-ink-solid);
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 0.4rem 0.5rem;
+  appearance: none;
+}
+
+.identity-pill {
+  position: absolute;
+  top: 50%;
+  right: 1rem;
+  transform: translateY(-50%);
+  padding: 0.2rem 0.8rem;
+  border-radius: 999px;
+  background: rgba(45, 193, 176, 0.18);
+  color: var(--color-ink-solid);
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  pointer-events: none;
 }
 
 .auth-form input {

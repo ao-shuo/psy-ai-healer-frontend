@@ -91,6 +91,57 @@ const categories = computed(() => {
   return ['全部', ...Array.from(set)]
 })
 
+type BoardMessage = {
+  id: number
+  author: string
+  content: string
+  createdAt: string
+}
+
+const BOARD_STORAGE_KEY = 'psy-ai-board'
+const BOARD_LIMIT = 16
+const boardMessages = ref<BoardMessage[]>([])
+const boardInput = ref('')
+
+const loadBoardMessages = () => {
+  if (typeof window === 'undefined') return
+  try {
+    const stored = localStorage.getItem(BOARD_STORAGE_KEY)
+    if (stored) {
+      boardMessages.value = JSON.parse(stored)
+    }
+  } catch {
+    // ignore
+  }
+}
+
+const persistBoardMessages = () => {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(BOARD_STORAGE_KEY, JSON.stringify(boardMessages.value))
+  } catch {
+    // ignore
+  }
+}
+
+const formatBoardTime = (value?: string) =>
+  value
+    ? new Date(value).toLocaleString('zh-CN', { hour12: false })
+    : '--'
+
+const postBoardMessage = () => {
+  const trimmed = boardInput.value.trim()
+  if (!trimmed) return
+  const entry: BoardMessage = {
+    id: Date.now(),
+    author: authStore.username || '访客',
+    content: trimmed,
+    createdAt: new Date().toISOString(),
+  }
+  boardMessages.value = [entry, ...boardMessages.value].slice(0, BOARD_LIMIT)
+  boardInput.value = ''
+}
+
 const sortedHistory = computed(() =>
   [...assessmentHistory.value].sort(
     (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
@@ -247,6 +298,7 @@ const loadDashboard = async () => {
 }
 
 onMounted(() => {
+  loadBoardMessages()
   if (isAuthenticated.value) {
     loadDashboard()
   }
@@ -259,6 +311,14 @@ watch(isAuthenticated, (value) => {
     resetDashboard()
   }
 })
+
+watch(
+  boardMessages,
+  () => {
+    persistBoardMessages()
+  },
+  { deep: true },
+)
 </script>
 
 <template>
@@ -281,171 +341,204 @@ watch(isAuthenticated, (value) => {
     </div>
   </section>
 
+  <nav v-if="isAuthenticated" class="page-nav">
+    <a href="#assessments">PHQ-9 心理评估</a>
+    <a href="#therapy">AI 治疗会话</a>
+    <a href="#knowledge">AI 知识库</a>
+    <a href="#message-board">互动留言板</a>
+  </nav>
+
   <section v-if="!isAuthenticated" class="auth-hint">
     <p>请通过登录 / 注册解锁完整的评估、会话与知识内容。</p>
     <RouterLink to="/auth" class="primary">登录 / 注册</RouterLink>
   </section>
 
   <section v-else class="dashboard">
-    <div class="grid-two">
-      <article class="panel assessment-panel">
-        <header class="panel-header">
-          <div>
-            <p class="title">PHQ-9 心理健康自评</p>
-            <p class="subtitle">输入过去两周的感受，AI 立即打分。</p>
-          </div>
-          <div class="status-pill" :class="{ loading: assessmentLoading }">
-            {{ assessmentResult ? assessmentResult.severity : '待评估' }}
-          </div>
-        </header>
-
-        <form class="questions" @submit.prevent="submitAssessment">
-          <div
-            v-for="(question, index) in phqQuestions"
-            :key="question"
-            class="question-row"
-          >
-            <p>{{ index + 1 }}. {{ question }}</p>
-            <select v-model.number="answers[index]">
-              <option
-                v-for="option in answerOptions"
-                :key="option.value"
-                :value="option.value"
-              >
-                {{ option.label }}
-              </option>
-            </select>
-          </div>
-
-          <div class="form-actions">
-            <button type="submit" :disabled="assessmentLoading">
-              {{ assessmentLoading ? '提交中…' : '提交问卷' }}
-            </button>
-            <p class="score" v-if="assessmentResult">
-              当前得分：<strong>{{ assessmentResult.score }}</strong>
-            </p>
-          </div>
-        </form>
-
-        <p class="error" v-if="assessmentError">{{ assessmentError }}</p>
-      </article>
-
-      <article class="panel history-panel">
-        <header class="panel-header">
-          <div>
-            <p class="title">历史记录</p>
-            <p class="subtitle">最近 5 次测试</p>
-          </div>
-          <p class="meta">共 {{ assessmentHistory.length }} 条</p>
-        </header>
-
-        <div class="history-table">
-          <div class="history-row" v-for="entry in sortedHistory.slice(0, 5)" :key="entry.id">
+    <div class="dashboard-shell">
+      <div id="assessments" class="section-grid">
+        <article class="panel assessment-panel">
+          <header class="panel-header">
             <div>
-              <p class="history-score">{{ entry.score }} 分</p>
-              <p class="history-severity">{{ entry.severity }}</p>
+              <p class="title">PHQ-9 心理健康自评</p>
+              <p class="subtitle">输入过去两周的感受，AI 立即打分。</p>
             </div>
-            <p class="history-time">{{ formatTimestamp(entry.createdAt) }}</p>
-          </div>
-          <p v-if="!assessmentHistory.length" class="empty">暂无记录</p>
-        </div>
+            <div class="status-pill" :class="{ loading: assessmentLoading }">
+              {{ assessmentResult ? assessmentResult.severity : '待评估' }}
+            </div>
+          </header>
 
-        <p class="error" v-if="assessmentError && !assessmentLoading">{{ assessmentError }}</p>
-      </article>
-    </div>
+          <form class="questions" @submit.prevent="submitAssessment">
+            <div
+              v-for="(question, index) in phqQuestions"
+              :key="question"
+              class="question-row"
+            >
+              <p>{{ index + 1 }}. {{ question }}</p>
+              <select v-model.number="answers[index]">
+                <option
+                  v-for="option in answerOptions"
+                  :key="option.value"
+                  :value="option.value"
+                >
+                  {{ option.label }}
+                </option>
+              </select>
+            </div>
 
-    <div class="grid-two">
-      <article class="panel therapy-panel">
-        <header class="panel-header">
-          <div>
-            <p class="title">AI 治疗会话</p>
-            <p class="subtitle">选择专题，开始陪伴式对话。</p>
-          </div>
-          <button class="ghost" @click="createSession" :disabled="creatingSession">
-            {{ creatingSession ? '创建中…' : '新建会话' }}
-          </button>
-        </header>
-
-        <div class="therapy-grid">
-          <div class="session-list">
-            <label class="input-label">会话主题</label>
-            <input
-              v-model="newSessionTopic"
-              placeholder="例：失眠/压力管理"
-            />
-            <p class="meta">{{ sessions.length }} 个会话</p>
-            <div class="sessions">
-              <button
-                v-for="session in sessions"
-                :key="session.id"
-                :class="['session-item', { active: session.id === selectedSessionId }]"
-                @click="selectSession(session)"
-              >
-                <span>{{ session.topic }}</span>
-                <small>{{ formatTimestamp(session.createdAt) }}</small>
+            <div class="form-actions">
+              <button type="submit" :disabled="assessmentLoading">
+                {{ assessmentLoading ? '提交中…' : '提交问卷' }}
               </button>
+              <p class="score" v-if="assessmentResult">
+                当前得分：<strong>{{ assessmentResult.score }}</strong>
+              </p>
             </div>
-            <p class="error" v-if="therapyError">{{ therapyError }}</p>
-          </div>
+          </form>
 
-          <div class="chat-column">
-            <div class="message-board">
-              <p v-if="messagesLoading" class="meta">加载消息…</p>
-              <div v-else class="message" :class="[`message--${message.sender?.toLowerCase()}`, message.sender]" v-for="message in therapyMessages" :key="message.id">
-                <span class="message-body">{{ message.content }}</span>
-                <small>{{ message.sender === 'USER' ? '你' : 'AI 助理' }} · {{ formatTimestamp(message.createdAt) }}</small>
+          <p class="error" v-if="assessmentError">{{ assessmentError }}</p>
+        </article>
+
+        <article class="panel history-panel">
+          <header class="panel-header">
+            <div>
+              <p class="title">历史记录</p>
+              <p class="subtitle">最近 5 次测试</p>
+            </div>
+            <p class="meta">共 {{ assessmentHistory.length }} 条</p>
+          </header>
+
+          <div class="history-table">
+            <div class="history-row" v-for="entry in sortedHistory.slice(0, 5)" :key="entry.id">
+              <div>
+                <p class="history-score">{{ entry.score }} 分</p>
+                <p class="history-severity">{{ entry.severity }}</p>
               </div>
-              <p class="empty" v-if="!therapyMessages.length && !messagesLoading">请选择会话</p>
+              <p class="history-time">{{ formatTimestamp(entry.createdAt) }}</p>
             </div>
-            <div class="strategy" v-if="lastStrategy">策略：{{ lastStrategy }}</div>
-            <div class="message-composer">
-              <textarea
-                v-model="newMessage"
-                rows="3"
-                placeholder="向心理助手输入你的想法"
-              ></textarea>
-              <button @click="sendMessage" :disabled="messageSending || !selectedSessionId">
-                {{ messageSending ? '发送中…' : '发送' }}
-              </button>
+            <p v-if="!assessmentHistory.length" class="empty">暂无记录</p>
+          </div>
+
+          <p class="error" v-if="assessmentError && !assessmentLoading">{{ assessmentError }}</p>
+        </article>
+      </div>
+
+      <div id="therapy" class="section-grid">
+        <article class="panel therapy-panel">
+          <header class="panel-header">
+            <div>
+              <p class="title">AI 治疗会话</p>
+              <p class="subtitle">选择专题，开始陪伴式对话。</p>
+            </div>
+            <button class="ghost" @click="createSession" :disabled="creatingSession">
+              {{ creatingSession ? '创建中…' : '新建会话' }}
+            </button>
+          </header>
+
+          <div class="therapy-grid">
+            <div class="session-list">
+              <label class="input-label">会话主题</label>
+              <input
+                v-model="newSessionTopic"
+                placeholder="例：失眠/压力管理"
+              />
+              <p class="meta">{{ sessions.length }} 个会话</p>
+              <div class="sessions">
+                <button
+                  v-for="session in sessions"
+                  :key="session.id"
+                  :class="['session-item', { active: session.id === selectedSessionId }]"
+                  @click="selectSession(session)"
+                >
+                  <span>{{ session.topic }}</span>
+                  <small>{{ formatTimestamp(session.createdAt) }}</small>
+                </button>
+              </div>
+              <p class="error" v-if="therapyError">{{ therapyError }}</p>
+            </div>
+
+            <div class="chat-column">
+              <div class="message-board">
+                <p v-if="messagesLoading" class="meta">加载消息…</p>
+                <div v-else class="message" :class="[`message--${message.sender?.toLowerCase()}`, message.sender]" v-for="message in therapyMessages" :key="message.id">
+                  <span class="message-body">{{ message.content }}</span>
+                  <small>{{ message.sender === 'USER' ? '你' : 'AI 助理' }} · {{ formatTimestamp(message.createdAt) }}</small>
+                </div>
+                <p class="empty" v-if="!therapyMessages.length && !messagesLoading">请选择会话</p>
+              </div>
+              <div class="strategy" v-if="lastStrategy">策略：{{ lastStrategy }}</div>
+              <div class="message-composer">
+                <textarea
+                  v-model="newMessage"
+                  rows="3"
+                  placeholder="向心理助手输入你的想法"
+                ></textarea>
+                <button @click="sendMessage" :disabled="messageSending || !selectedSessionId">
+                  {{ messageSending ? '发送中…' : '发送' }}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      </article>
+        </article>
 
-      <article class="panel knowledge-panel">
+        <article id="knowledge" class="panel knowledge-panel">
+          <header class="panel-header">
+            <div>
+              <p class="title">AI 知识库</p>
+              <p class="subtitle">按分类浏览，沉浸式解读专业文章。</p>
+            </div>
+            <p class="meta">{{ knowledgeArticles.length }} 篇</p>
+          </header>
+
+          <div class="filters">
+            <button
+              v-for="category in categories"
+              :key="category"
+              class="filter"
+              :class="{ active: selectedCategory === category }"
+              @click="switchCategory(category)"
+            >
+              {{ category }}
+            </button>
+          </div>
+
+          <div class="articles">
+            <article v-for="article in knowledgeArticles" :key="article.id" class="article-card">
+              <div class="article-header">
+                <p class="article-category">{{ article.category || '未分类' }}</p>
+                <p class="article-time">{{ formatTimestamp(article.createdAt) }}</p>
+              </div>
+              <h3>{{ article.title }}</h3>
+              <p class="article-content">{{ article.content.length > 160 ? `${article.content.slice(0, 160)}…` : article.content }}</p>
+            </article>
+            <p v-if="!knowledgeArticles.length" class="empty">暂无文章</p>
+          </div>
+
+          <p class="error" v-if="knowledgeError">{{ knowledgeError }}</p>
+        </article>
+      </div>
+
+      <article id="message-board" class="panel message-panel">
         <header class="panel-header">
           <div>
-            <p class="title">AI 知识库</p>
-            <p class="subtitle">按分类浏览，沉浸式解读专业文章。</p>
+            <p class="title">互动留言板</p>
+            <p class="subtitle">把当下的感受分享给社区，系统会保留你的心声。</p>
           </div>
-          <p class="meta">{{ knowledgeArticles.length }} 篇</p>
+          <p class="meta">共 {{ boardMessages.length }} 条</p>
         </header>
-
-        <div class="filters">
-          <button
-            v-for="category in categories"
-            :key="category"
-            class="filter"
-            :class="{ active: selectedCategory === category }"
-            @click="switchCategory(category)"
-          >
-            {{ category }}
-          </button>
-        </div>
-
-        <div class="articles">
-          <article v-for="article in knowledgeArticles" :key="article.id" class="article-card">
-            <div class="article-header">
-              <p class="article-category">{{ article.category || '未分类' }}</p>
-              <p class="article-time">{{ formatTimestamp(article.createdAt) }}</p>
+        <div class="messages-list">
+          <article v-for="message in boardMessages" :key="message.id" class="board-message">
+            <div class="board-message-header">
+              <strong>{{ message.author }}</strong>
+              <small>{{ formatBoardTime(message.createdAt) }}</small>
             </div>
-            <h3>{{ article.title }}</h3>
-            <p class="article-content">{{ article.content.length > 160 ? `${article.content.slice(0, 160)}…` : article.content }}</p>
+            <p>{{ message.content }}</p>
           </article>
-          <p v-if="!knowledgeArticles.length" class="empty">暂无文章</p>
+          <p v-if="!boardMessages.length" class="empty">暂无留言，写下你的感受即可被记录。</p>
         </div>
-
-        <p class="error" v-if="knowledgeError">{{ knowledgeError }}</p>
+        <form class="message-form" @submit.prevent="postBoardMessage">
+          <textarea v-model="boardInput" rows="3" placeholder="将此刻的心境写下来"></textarea>
+          <button type="submit">发布留言</button>
+        </form>
       </article>
     </div>
   </section>
@@ -475,6 +568,31 @@ watch(isAuthenticated, (value) => {
   font-size: 1.1rem;
   font-weight: 500;
   color: var(--color-accent);
+}
+
+.page-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.65rem 1rem;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.page-nav a {
+  padding: 0.45rem 0.9rem;
+  border-radius: 0.8rem;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.15rem;
+  color: var(--color-ink-strong);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid transparent;
+}
+
+.page-nav a:hover {
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 .hero-sup {
@@ -553,6 +671,19 @@ watch(isAuthenticated, (value) => {
   flex-direction: column;
   gap: 1.5rem;
   margin-top: 0.75rem;
+}
+
+.dashboard-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.section-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.25rem;
+  align-items: stretch;
 }
 
 .grid-two {
@@ -824,6 +955,69 @@ watch(isAuthenticated, (value) => {
   cursor: pointer;
 }
 
+.message-panel {
+  width: 100%;
+  padding: 1.5rem;
+  border-radius: 1.25rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 25px 40px rgba(4, 12, 31, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.messages-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+.board-message {
+  padding: 0.9rem 1rem;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.board-message-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.65);
+  margin-bottom: 0.25rem;
+}
+
+.message-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.message-form textarea {
+  width: 100%;
+  padding: 0.9rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--color-ink-solid);
+  resize: vertical;
+}
+
+.message-form button {
+  align-self: flex-end;
+  padding: 0.8rem 1.4rem;
+  border-radius: 0.9rem;
+  border: none;
+  background: var(--gradient-sage);
+  color: var(--color-ink-solid);
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .strategy {
   font-size: 0.85rem;
   color: rgba(255, 255, 255, 0.7);
@@ -884,6 +1078,9 @@ watch(isAuthenticated, (value) => {
 
 @media (max-width: 900px) {
   .therapy-grid {
+    grid-template-columns: 1fr;
+  }
+  .section-grid {
     grid-template-columns: 1fr;
   }
 }

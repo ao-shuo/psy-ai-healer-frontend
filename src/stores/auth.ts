@@ -91,7 +91,16 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  const register = async (form: { username: string; password: string; fullName: string; email: string }) => {
+  type RegisterPayload = {
+    username: string
+    password: string
+    fullName: string
+    email: string
+    role?: 'USER' | 'ADMIN' | 'THERAPIST'
+    registrationCode?: string
+  }
+
+  const register = async (form: RegisterPayload) => {
     loading.value = true
     try {
       const response = await apiFetch('/auth/register', {
