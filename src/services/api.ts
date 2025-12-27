@@ -1,55 +1,90 @@
-const resolveBase = (base?: string) => (base ?? '/api').replace(/\\/g, '/').replace(/\/$/, '')
-const API_BASE = resolveBase(import.meta.env.VITE_API_BASE_URL)
+import axios, { type InternalAxiosRequestConfig, type AxiosError } from 'axios'
+import type { LoginCredentials, RegisterData } from '@/stores/auth'
 
-const defaultHeaders = {
-  'Content-Type': 'application/json',
-  Accept: 'application/json',
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
+
+export type ApiFetchOptions = {
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+  headers?: Record<string, string>
+  body?: unknown
+  params?: Record<string, unknown>
 }
 
-const normalizePath = (path: string) => (path.startsWith('/') ? path : `/${path}`)
-
-const parseBody = async (response: Response) => {
-  const text = await response.text()
-  if (!text) return null
-  try {
-    return JSON.parse(text)
-  } catch {
-    return text
+const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json'
   }
-}
+})
 
-export async function apiFetch(path: string, options: RequestInit = {}) {
-  const mergedHeaders = { ...defaultHeaders, ...(options.headers ?? {}) }
-  const request: RequestInit = {
-    ...options,
-    headers: mergedHeaders,
-  }
-
-  if (options.body && typeof options.body !== 'string') {
-    request.body = JSON.stringify(options.body)
-  }
-
-  const response = await fetch(`${API_BASE}${normalizePath(path)}`, request)
-  const payload = await parseBody(response)
-  if (!response.ok) {
-    const message = typeof payload === 'object' && payload !== null && 'message' in payload
-      ? (payload as Record<string, unknown>).message
-      : null
-    throw new Error((message as string) ?? response.statusText ?? '请求失败')
-  }
-
-  return payload
-}
-
-export function authFetch(token?: string) {
-  return (path: string, options: RequestInit = {}) => {
-    if (!token) {
-      throw new Error('尚未登录')
+// 请求拦截器：添加 token
+apiClient.interceptors.request.use(
+  (config: InternalAxiosRequestConfig) => {
+    const token = localStorage.getItem('token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
     }
-    const mergeHeaders = {
-      Authorization: `Bearer ${token}`,
-      ...(options.headers ?? {}),
+    return config
+  },
+  (error: AxiosError) => Promise.reject(error)
+)
+
+// 响应拦截器：处理 401
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error: AxiosError) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token')
+      window.location.href = '/auth'
     }
-    return apiFetch(path, { ...options, headers: mergeHeaders })
+    return Promise.reject(error)
   }
+)
+
+async function request<T = any>(path: string, options: ApiFetchOptions = {}, token?: string | null): Promise<T> {
+  const method = options.method ?? 'GET'
+  const normalizedPath = path.startsWith('/') ? path.slice(1) : path
+
+  const headerToken = token ?? localStorage.getItem('token')
+  const headers: Record<string, string> = {
+    ...(options.headers ?? {})
+  }
+  if (headerToken) {
+    headers.Authorization = `Bearer ${headerToken}`
+  }
+
+  const response = await apiClient.request<T>({
+    url: normalizedPath,
+    method,
+    headers,
+    params: options.params,
+    data: options.body
+  })
+
+  return response.data
 }
+
+export function apiFetch() {
+  return (path: string, options: ApiFetchOptions = {}) => request(path, options)
+}
+
+export function authFetch(token?: string | null) {
+  return (path: string, options: ApiFetchOptions = {}) => request(path, options, token)
+}
+
+export async function login(credentials: LoginCredentials) {
+  const response = await apiClient.post('auth/login', credentials)
+  return response.data
+}
+
+export async function register(data: RegisterData) {
+  const response = await apiClient.post('auth/register', data)
+  return response.data
+}
+
+export async function getCurrentUser() {
+  const response = await apiClient.get('auth/me')
+  return response.data
+}
+
+export default apiClient

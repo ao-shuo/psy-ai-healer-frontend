@@ -1,130 +1,111 @@
-import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import { apiFetch } from '@/services/api'
+import { ref, computed } from 'vue'
+import { login as apiLogin, register as apiRegister, getCurrentUser } from '@/services/api'
 
-const STORAGE_KEYS = {
-  token: 'psy-ai-token',
-  username: 'psy-ai-username',
-  roles: 'psy-ai-roles',
+export interface User {
+  id: number
+  username: string
+  fullName?: string
+  email: string
+  role: 'STUDENT' | 'COUNSELOR' | 'ADMIN'
+  enabled?: boolean
+  createdAt?: string | null
 }
 
-const readStorage = (key: string, fallback = '') => {
-  if (typeof window === 'undefined') return fallback
-  try {
-    return localStorage.getItem(key) ?? fallback
-  } catch {
-    return fallback
-  }
+export interface LoginCredentials {
+  username: string
+  password: string
 }
 
-const writeStorage = (key: string, value: string) => {
-  if (typeof window === 'undefined') return
-  try {
-    localStorage.setItem(key, value)
-  } catch {
-    // ignore
-  }
-}
-
-const removeStorage = (key: string) => {
-  if (typeof window === 'undefined') return
-  try {
-    localStorage.removeItem(key)
-  } catch {
-    // ignore
-  }
-}
-
-const parseRoles = (value: string) => {
-  try {
-    const parsed = JSON.parse(value)
-    if (Array.isArray(parsed)) {
-      return parsed.filter((item) => typeof item === 'string') as string[]
-    }
-  } catch {
-    // ignore
-  }
-  return []
+export interface RegisterData {
+  username: string
+  password: string
+  fullName: string
+  email: string
+  role: 'STUDENT' | 'COUNSELOR' | 'ADMIN'
+  registrationCode?: string
 }
 
 export const useAuthStore = defineStore('auth', () => {
-  const token = ref(readStorage(STORAGE_KEYS.token))
-  const username = ref(readStorage(STORAGE_KEYS.username))
-  const roles = ref(parseRoles(readStorage(STORAGE_KEYS.roles)))
+  const token = ref<string | null>(localStorage.getItem('token'))
+  const user = ref<User | null>(null)
+  const roles = ref<string[]>([])
   const loading = ref(false)
+  const error = ref<string | null>(null)
 
-  const isAuthenticated = computed(() => Boolean(token.value))
+  const isAuthenticated = computed(() => !!token.value)
+  const username = computed(() => user.value?.username ?? null)
+  const isStudent = computed(() => user.value?.role === 'STUDENT' || roles.value.includes('STUDENT'))
+  const isCounselor = computed(() => user.value?.role === 'COUNSELOR' || roles.value.includes('COUNSELOR'))
+  const isAdmin = computed(() => user.value?.role === 'ADMIN' || roles.value.includes('ADMIN'))
 
-  const persist = () => {
-    writeStorage(STORAGE_KEYS.token, token.value)
-    writeStorage(STORAGE_KEYS.username, username.value)
-    writeStorage(STORAGE_KEYS.roles, JSON.stringify(roles.value))
+  async function login(credentials: LoginCredentials) {
+    try {
+      loading.value = true
+      error.value = null
+      const response = await apiLogin(credentials)
+
+      token.value = response.token
+      roles.value = Array.isArray(response.roles) ? response.roles : []
+      localStorage.setItem('token', response.token)
+
+      await fetchCurrentUser()
+      return true
+    } catch (err: any) {
+      error.value = err.response?.data?.message || err.response?.data?.error || '登录失败'
+      throw err
+    } finally {
+      loading.value = false
+    }
   }
 
-  const reset = () => {
-    token.value = ''
-    username.value = ''
+  async function register(data: RegisterData) {
+    try {
+      loading.value = true
+      error.value = null
+      await apiRegister(data)
+      return true
+    } catch (err: any) {
+      error.value = err.response?.data?.message || err.response?.data?.error || '注册失败'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function fetchCurrentUser() {
+    if (!token.value) return
+    
+    try {
+      const userData = await getCurrentUser()
+      user.value = userData
+      roles.value = userData?.role ? [userData.role] : roles.value
+    } catch (err) {
+      logout()
+    }
+  }
+
+  function logout() {
+    token.value = null
+    user.value = null
     roles.value = []
-    removeStorage(STORAGE_KEYS.token)
-    removeStorage(STORAGE_KEYS.username)
-    removeStorage(STORAGE_KEYS.roles)
-  }
-
-  const applyResponse = (payload: { token?: string; username?: string; roles?: unknown }) => {
-    token.value = payload.token ?? ''
-    username.value = payload.username ?? ''
-    const rawRoles = Array.isArray(payload.roles) ? payload.roles.filter((value): value is string => typeof value === 'string') : []
-    roles.value = rawRoles
-    persist()
-  }
-
-  const login = async (form: { username: string; password: string }) => {
-    loading.value = true
-    try {
-      const response = await apiFetch('/auth/login', {
-        method: 'POST',
-        body: form,
-      })
-      applyResponse(response ?? {})
-    } finally {
-      loading.value = false
-    }
-  }
-
-  type RegisterPayload = {
-    username: string
-    password: string
-    fullName: string
-    email: string
-    role?: 'USER' | 'ADMIN' | 'THERAPIST'
-    registrationCode?: string
-  }
-
-  const register = async (form: RegisterPayload) => {
-    loading.value = true
-    try {
-      const response = await apiFetch('/auth/register', {
-        method: 'POST',
-        body: form,
-      })
-      applyResponse(response ?? {})
-    } finally {
-      loading.value = false
-    }
-  }
-
-  const logout = () => {
-    reset()
+    localStorage.removeItem('token')
   }
 
   return {
     token,
-    username,
+    user,
     roles,
     loading,
+    error,
     isAuthenticated,
+    username,
+    isStudent,
+    isCounselor,
+    isAdmin,
     login,
     register,
     logout,
+    fetchCurrentUser
   }
 })

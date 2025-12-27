@@ -1,5 +1,15 @@
 <script setup lang="ts">
 import { RouterLink, RouterView } from 'vue-router'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+
+const auth = useAuthStore()
+const router = useRouter()
+
+const logout = () => {
+  auth.logout()
+  router.push('/auth')
+}
 </script>
 
 <template>
@@ -10,8 +20,13 @@ import { RouterLink, RouterView } from 'vue-router'
         <p class="tagline">陪伴式心理 AI 助手</p>
       </div>
       <nav class="app-nav">
-        <RouterLink to="/">仪表板</RouterLink>
-        <RouterLink to="/auth">登录 / 注册</RouterLink>
+        <RouterLink :to="auth.isAdmin ? '/admin' : auth.isCounselor ? '/counselor' : '/home'">仪表板</RouterLink>
+        <RouterLink v-if="!auth.isAuthenticated" to="/auth">登录 / 注册</RouterLink>
+        <div v-else class="user-chip">
+          <span>{{ auth.username }}</span>
+          <span class="role-pill" v-if="auth.roles.length">{{ auth.roles.join(', ') }}</span>
+        </div>
+        <button v-if="auth.isAuthenticated" type="button" class="logout-btn" @click="logout">退出</button>
       </nav>
     </header>
 
@@ -81,9 +96,42 @@ import { RouterLink, RouterView } from 'vue-router'
   transition: border-color 0.3s ease, transform 0.3s ease;
 }
 
+.logout-btn {
+  font-weight: 600;
+  padding: 0.65rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.2);
+  color: var(--color-ink-strong);
+  cursor: pointer;
+  transition: border-color 0.3s ease, transform 0.3s ease;
+}
+
+.logout-btn:hover {
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-2px);
+}
+
 .app-nav a:hover {
   border-color: rgba(255, 255, 255, 0.5);
   transform: translateY(-2px);
+}
+
+.user-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.1rem;
+  padding: 0.35rem 0.9rem;
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.role-pill {
+  font-size: 0.75rem;
+  color: var(--color-ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.2rem;
 }
 
 .app-main {

@@ -42,7 +42,7 @@ const submit = async () => {
   try {
     const payload = await af('/assessments/phq9', { method: 'POST', body: { answers: answers.value } })
     result.value = payload
-n  } finally {
+  } finally {
     submitting.value = false
   }
 }

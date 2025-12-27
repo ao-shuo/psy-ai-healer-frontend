@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { authFetch } from '@/services/api'
+import type { ApiFetchOptions } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 
 type AssessmentEntry = {
@@ -36,7 +37,7 @@ type KnowledgeArticle = {
 
 const authStore = useAuthStore()
 const isAuthenticated = computed(() => authStore.isAuthenticated)
-const authRequest = (path: string, options: RequestInit = {}) => authFetch(authStore.token)(path, options)
+const authRequest = (path: string, options: ApiFetchOptions = {}) => authFetch(authStore.token)(path, options)
 
 const phqQuestions = [
   '对做的事情提不起兴趣或乐趣明显减少',
@@ -208,7 +209,7 @@ const fetchSessionMessages = async (sessionId: number) => {
   }
 }
 
-const selectSession = async (session: TherapySession) => {
+const selectSession = async (session?: TherapySession) => {
   if (!session) return
   selectedSessionId.value = session.id
   await fetchSessionMessages(session.id)
