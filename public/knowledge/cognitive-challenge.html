@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>心理健康指南 - 认知挑战</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: "微软雅黑", "PingFang SC", sans-serif;
+    }
+
+    body {
+      background-color: #f8f9fa;
+      color: #333;
+      line-height: 1.8;
+      padding-bottom: 50px;
+    }
+
+    .nav-bar {
+      background-color: #46b8da;
+      padding: 15px 0;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .nav-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-around;
+      flex-wrap: wrap;
+    }
+
+    .nav-link {
+      color: white;
+      text-decoration: none;
+      font-size: 16px;
+      padding: 8px 15px;
+      border-radius: 5px;
+      transition: background-color 0.3s;
+    }
+
+    .nav-link:hover,
+    .nav-link.active {
+      background-color: #31708f;
+    }
+
+    .content {
+      max-width: 1000px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+
+    .content h1 {
+      color: #31708f;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #46b8da;
+      padding-bottom: 10px;
+    }
+
+    .content h2 {
+      color: #46b8da;
+      margin: 25px 0 15px;
+    }
+
+    .content p,
+    .content li {
+      margin-bottom: 12px;
+      font-size: 15px;
+    }
+
+    .content ul,
+    .content ol {
+      padding-left: 30px;
+    }
+
+    @media (max-width: 768px) {
+      .nav-container {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .nav-link {
+        margin: 5px 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="nav-bar">
+    <div class="nav-container">
+      <a href="emotion-regulation.html" class="nav-link">情绪调节</a>
+      <a href="sleep-management.html" class="nav-link">睡眠管理</a>
+      <a href="cognitive-behavior.html" class="nav-link">认知行为</a>
+      <a href="cognitive-challenge.html" class="nav-link active">认知挑战</a>
+      <a href="body-awareness.html" class="nav-link">身体觉察</a>
+    </div>
+  </div>
+
+  <div class="content">
+    <h1>认知挑战</h1>
+    <p>
+      认知挑战是识别并反驳不合理、消极的自动化思维（如“非黑即白”“灾难化”）的过程，帮助我们打破负面认知循环，建立更客观的思维方式。
+    </p>
+
+    <h2>常见的不合理认知类型</h2>
+    <ul>
+      <li><strong>非黑即白</strong>：要么完美，要么失败（如“这次没做好，我就是个失败者”）。</li>
+      <li><strong>灾难化</strong>：夸大事情的负面后果（如“这次出错，所有人都会看不起我”）。</li>
+      <li><strong>以偏概全</strong>：用一次失败否定全部（如“我演讲失误了，我永远都做不好公开表达”）。</li>
+      <li><strong>情绪推理</strong>：把感受当事实（如“我感觉焦虑，所以肯定会发生不好的事”）。</li>
+    </ul>
+
+    <h2>认知挑战的步骤</h2>
+    <ol>
+      <li>识别：发现自己的消极自动化思维（比如“我做不到”）。</li>
+      <li>质疑：问自己“有什么证据支持这个想法？有什么证据反对？”。</li>
+      <li>替换：用客观、理性的想法替代消极想法（如“我之前做过类似的事，虽然有难度，但可以试试”）。</li>
+      <li>验证：行动后复盘，看看新想法是否更符合实际。</li>
+    </ol>
+  </div>
+</body>
+</html>

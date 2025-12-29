@@ -81,10 +81,24 @@ const knowledgeLoading = ref(false)
 const knowledgeError = ref('')
 const selectedCategory = ref('全部')
 
+const knowledgeTopics = [
+  { category: '情绪调节', href: '/knowledge/emotion-regulation.html' },
+  { category: '睡眠管理', href: '/knowledge/sleep-management.html' },
+  { category: '认知行为', href: '/knowledge/cognitive-behavior.html' },
+  { category: '认知挑战', href: '/knowledge/cognitive-challenge.html' },
+  { category: '身体觉察', href: '/knowledge/body-awareness.html' },
+] as const
+
+const topicHref = (category?: string) => {
+  const hit = knowledgeTopics.find((topic) => topic.category === (category ?? ''))
+  return hit?.href ?? ''
+}
+
 const userBadge = computed(() => authStore.username || '匿名')
 const roleBadge = computed(() => (authStore.roles.length ? authStore.roles.join(', ') : '普通用户'))
 const categories = computed(() => {
   const set = new Set<string>()
+  knowledgeTopics.forEach((topic) => set.add(topic.category))
   knowledgeArticles.value.forEach((article) => {
     if (article.category) {
       set.add(article.category)
@@ -504,24 +518,53 @@ watch(
           </header>
 
           <div class="filters">
-            <button
-              v-for="category in categories"
-              :key="category"
-              class="filter"
-              :class="{ active: selectedCategory === category }"
-              @click="switchCategory(category)"
-            >
-              {{ category }}
-            </button>
+            <template v-for="category in categories" :key="category">
+              <button
+                v-if="category === '全部' || !topicHref(category)"
+                class="filter"
+                :class="{ active: selectedCategory === category }"
+                @click="switchCategory(category)"
+              >
+                {{ category }}
+              </button>
+              <a
+                v-else
+                class="filter topic-link"
+                :href="topicHref(category)"
+                target="_blank"
+                rel="noopener"
+              >
+                {{ category }}
+              </a>
+            </template>
           </div>
 
           <div class="articles">
             <article v-for="article in knowledgeArticles" :key="article.id" class="article-card">
               <div class="article-header">
-                <p class="article-category">{{ article.category || '未分类' }}</p>
+                <a
+                  v-if="topicHref(article.category)"
+                  class="article-category article-category-link"
+                  :href="topicHref(article.category)"
+                  target="_blank"
+                  rel="noopener"
+                >
+                  {{ article.category || '未分类' }}
+                </a>
+                <p v-else class="article-category">{{ article.category || '未分类' }}</p>
                 <p class="article-time">{{ formatTimestamp(article.createdAt) }}</p>
               </div>
-              <h3>{{ article.title }}</h3>
+              <h3 class="article-title">
+                <a
+                  v-if="topicHref(article.category)"
+                  :href="topicHref(article.category)"
+                  target="_blank"
+                  rel="noopener"
+                >
+                  {{ article.title }}
+                </a>
+                <span v-else>{{ article.title }}</span>
+              </h3>
               <p class="article-content">{{ article.content.length > 160 ? `${article.content.slice(0, 160)}…` : article.content }}</p>
             </article>
             <p v-if="!knowledgeArticles.length" class="empty">暂无文章</p>
@@ -1064,6 +1107,12 @@ watch(
   gap: 0.5rem;
 }
 
+.topic-link {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
 .filter {
   padding: 0.4rem 0.8rem;
   border-radius: 999px;
@@ -1102,6 +1151,21 @@ watch(
   text-transform: uppercase;
   letter-spacing: 0.1rem;
   color: rgba(255, 255, 255, 0.6);
+}
+
+.article-category-link {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: from-font;
+}
+
+.article-title a {
+  color: var(--color-ink-strong);
+  text-decoration: none;
+}
+
+.article-title a:hover {
+  text-decoration: underline;
 }
 
 .article-content {
