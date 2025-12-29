@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import { authFetch } from '@/services/api'
 import type { ApiFetchOptions } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
@@ -36,6 +36,7 @@ type KnowledgeArticle = {
 }
 
 const authStore = useAuthStore()
+const router = useRouter()
 const isAuthenticated = computed(() => authStore.isAuthenticated)
 const authRequest = (path: string, options: ApiFetchOptions = {}) => authFetch(authStore.token)(path, options)
 
@@ -265,6 +266,13 @@ const createSession = async () => {
   }
 }
 
+const goLive2D = () => {
+  router.push({
+    name: 'live2d',
+    query: selectedSessionId.value ? { sessionId: String(selectedSessionId.value) } : {},
+  })
+}
+
 const sendMessage = async () => {
   if (!selectedSessionId.value || !newMessage.value.trim()) return
   messageSending.value = true
@@ -430,9 +438,14 @@ watch(
               <p class="title">AI 治疗会话</p>
               <p class="subtitle">选择专题，开始陪伴式对话。</p>
             </div>
-            <button class="ghost" @click="createSession" :disabled="creatingSession">
-              {{ creatingSession ? '创建中…' : '新建会话' }}
-            </button>
+            <div class="panel-actions">
+              <button class="ghost" type="button" @click="goLive2D">
+                进入数字人
+              </button>
+              <button class="ghost" @click="createSession" :disabled="creatingSession">
+                {{ creatingSession ? '创建中…' : '新建会话' }}
+              </button>
+            </div>
           </header>
 
           <div class="therapy-grid">
@@ -711,6 +724,13 @@ watch(
   gap: 1rem;
 }
 
+.panel-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
 .panel .title {
   font-size: 1rem;
   font-weight: 600;
@@ -858,7 +878,7 @@ watch(
   border-radius: 0.9rem;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid transparent;
-  color: var(--color-ink-solid);
+  color: var(--color-ink-strong);
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -885,7 +905,11 @@ watch(
   border-radius: 0.9rem;
   border: 1px solid rgba(255, 255, 255, 0.25);
   background: rgba(0, 0, 0, 0.2);
-  color: var(--color-ink-solid);
+  color: var(--color-ink-strong);
+}
+
+.session-list input::placeholder {
+  color: rgba(247, 249, 251, 0.6);
 }
 
 .ghost {
@@ -941,8 +965,12 @@ watch(
   border-radius: 1rem;
   border: 1px solid rgba(255, 255, 255, 0.2);
   background: rgba(255, 255, 255, 0.05);
-  color: var(--color-ink-solid);
+  color: var(--color-ink-strong);
   resize: vertical;
+}
+
+.message-composer textarea::placeholder {
+  color: rgba(247, 249, 251, 0.6);
 }
 
 .message-composer button {
@@ -1004,8 +1032,12 @@ watch(
   border-radius: 1rem;
   border: 1px solid rgba(255, 255, 255, 0.2);
   background: rgba(255, 255, 255, 0.05);
-  color: var(--color-ink-solid);
+  color: var(--color-ink-strong);
   resize: vertical;
+}
+
+.message-form textarea::placeholder {
+  color: rgba(247, 249, 251, 0.6);
 }
 
 .message-form button {
@@ -1037,7 +1069,7 @@ watch(
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.25);
   background: transparent;
-  color: var(--color-ink-solid);
+  color: var(--color-ink-strong);
   cursor: pointer;
 }
 

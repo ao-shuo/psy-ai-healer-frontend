@@ -29,6 +29,12 @@ const router = createRouter({
       meta: { requiresAuth: true, roles: ['STUDENT'] }
     },
     {
+      path: '/live2d',
+      name: 'live2d',
+      component: () => import('../views/Live2DView.vue'),
+      meta: { requiresAuth: true, roles: ['STUDENT'] }
+    },
+    {
       path: '/assessment',
       name: 'assessment',
       component: () => import('../views/AssessmentView.vue'),

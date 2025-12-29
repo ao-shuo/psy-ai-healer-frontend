@@ -1,3 +1,7 @@
+// sockjs-client (and some other deps) expect a Node-like `global`.
+// In Vite/browser builds it may be missing, causing: ReferenceError: global is not defined
+;(globalThis as any).global = globalThis
+
 import './assets/main.css'
 
 import { createApp } from 'vue'
