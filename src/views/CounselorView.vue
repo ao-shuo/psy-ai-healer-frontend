@@ -72,9 +72,19 @@
             <span>{{ r.severity }}</span>
             <span>{{ formatDate(r.createdAt) }}</span>
             <span>
-              <button type="button" class="btn" :disabled="detailLoadingId === r.id" @click="toggleDetail(r.id)">
-                {{ expandedId === r.id ? '收起' : detailLoadingId === r.id ? '加载中…' : '查看' }}
-              </button>
+              <div class="ops">
+                <button
+                  type="button"
+                  class="btn"
+                  :disabled="!r.user?.id || profileLoadingUserId === r.user?.id"
+                  @click="r.user?.id && loadProfile(r.user.id)"
+                >
+                  {{ profileLoadingUserId === r.user?.id ? '加载画像…' : '画像' }}
+                </button>
+                <button type="button" class="btn" :disabled="detailLoadingId === r.id" @click="toggleDetail(r.id)">
+                  {{ expandedId === r.id ? '收起' : detailLoadingId === r.id ? '加载中…' : '查看' }}
+                </button>
+              </div>
             </span>
           </div>
 
@@ -86,6 +96,41 @@
               <p><b>分数：</b>{{ detail.score }} / <b>程度：</b>{{ detail.severity }}</p>
               <p><b>答案：</b></p>
               <pre class="answers">{{ detail.answers }}</pre>
+            </div>
+          </div>
+
+          <div class="detail" v-if="selectedProfile || profileError">
+            <p class="error" v-if="profileError">{{ profileError }}</p>
+            <div v-else-if="selectedProfile" class="detail-box">
+              <div class="card-head" style="margin: 0 0 0.5rem;">
+                <h3 style="margin: 0;">用户画像</h3>
+                <button type="button" class="btn" @click="clearProfile">关闭</button>
+              </div>
+              <p><b>用户：</b>{{ selectedProfile.username }}（ID: {{ selectedProfile.userId }}）</p>
+              <p><b>姓名：</b>{{ selectedProfile.fullName || '-' }} / <b>邮箱：</b>{{ selectedProfile.email || '-' }}</p>
+              <p><b>风险等级：</b>{{ selectedProfile.riskLevel || '-' }}</p>
+              <p><b>对话推断时间：</b>{{ formatDate(selectedProfile.lastInsightAt || '') }}</p>
+              <p><b>置信度：</b>{{ selectedProfile.insightConfidence != null ? Number(selectedProfile.insightConfidence).toFixed(2) : '-' }}</p>
+              <p><b>沟通风格：</b>{{ selectedProfile.communicationStyle || '-' }}</p>
+              <p><b>性格/倾向（推断）：</b></p>
+              <pre class="answers">{{ selectedProfile.personalityNotes || '-' }}</pre>
+              <p><b>证据（来自对话）：</b></p>
+              <pre class="answers">{{ selectedProfile.insightEvidence || '-' }}</pre>
+              <p>
+                <b>最近PHQ-9：</b>{{ selectedProfile.lastPhq9Score ?? '-' }}
+                {{ selectedProfile.lastPhq9Severity ? '（' + selectedProfile.lastPhq9Severity + '）' : '' }}
+              </p>
+              <p>
+                <b>最近心情：</b>{{ selectedProfile.lastMood || '-' }}
+                {{ selectedProfile.lastMoodScore != null ? '（' + selectedProfile.lastMoodScore + '/10）' : '' }}
+              </p>
+              <p><b>偏好语气：</b>{{ selectedProfile.preferredTone || '-' }}</p>
+              <p><b>目标：</b></p>
+              <pre class="answers">{{ selectedProfile.goals || '-' }}</pre>
+              <p><b>触发点：</b></p>
+              <pre class="answers">{{ selectedProfile.triggers || '-' }}</pre>
+              <p><b>偏好应对方式：</b></p>
+              <pre class="answers">{{ selectedProfile.copingPreferences || '-' }}</pre>
             </div>
           </div>
         </div>
@@ -126,6 +171,38 @@ type Phq9Assessment = {
   user?: BasicUser
 }
 
+type UserProfileView = {
+  userId: number
+  username: string
+  fullName?: string | null
+  email?: string | null
+  role?: string | null
+  enabled: boolean
+
+  profileId: number
+  lastPhq9Score?: number | null
+  lastPhq9Severity?: string | null
+  lastPhq9At?: string | null
+
+  lastMood?: string | null
+  lastMoodScore?: number | null
+  lastMoodAt?: string | null
+
+  preferredTone?: string | null
+  goals?: string | null
+  triggers?: string | null
+  copingPreferences?: string | null
+
+  riskLevel?: string | null
+  updatedAt?: string | null
+
+  communicationStyle?: string | null
+  personalityNotes?: string | null
+  insightEvidence?: string | null
+  insightConfidence?: number | null
+  lastInsightAt?: string | null
+}
+
 const auth = useAuthStore()
 const af = authFetch(auth.token)
 
@@ -144,6 +221,10 @@ const detail = ref<Phq9Assessment | null>(null)
 const detailLoading = ref(false)
 const detailError = ref('')
 const detailLoadingId = ref<number | null>(null)
+
+const selectedProfile = ref<UserProfileView | null>(null)
+const profileError = ref('')
+const profileLoadingUserId = ref<number | null>(null)
 
 const formatDate = (iso?: string) => {
   if (!iso) return '-'
@@ -210,6 +291,23 @@ const toggleDetail = async (id: number) => {
   } finally {
     detailLoading.value = false
     detailLoadingId.value = null
+  }
+}
+
+const clearProfile = () => {
+  selectedProfile.value = null
+  profileError.value = ''
+}
+
+const loadProfile = async (userId: number) => {
+  profileLoadingUserId.value = userId
+  profileError.value = ''
+  try {
+    selectedProfile.value = await af(`/counselor/users/${userId}/profile`)
+  } catch (e: any) {
+    profileError.value = e?.response?.data?.message || e?.message || '加载画像失败'
+  } finally {
+    profileLoadingUserId.value = null
   }
 }
 
@@ -327,6 +425,12 @@ onMounted(async () => {
   grid-template-columns: 0.6fr 1fr 0.7fr 1fr 1.2fr 0.9fr;
 }
 
+.ops {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
 .truncate {
   overflow: hidden;
   white-space: nowrap;
@@ -348,7 +452,8 @@ onMounted(async () => {
   margin: 0.5rem 0 0;
   padding: 0.6rem;
   border-radius: 0.75rem;
-  background: rgba(0, 0, 0, 0.12);
+  background: var(--surface-1);
+  border: 1px solid var(--border-1);
   overflow: auto;
 }
 </style>

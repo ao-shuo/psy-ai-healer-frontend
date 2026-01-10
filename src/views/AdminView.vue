@@ -72,6 +72,9 @@
             <span>{{ u.role }}</span>
             <span>{{ u.enabled ? '是' : '否' }}</span>
             <span>
+              <button type="button" class="btn" :disabled="profileLoadingId === u.id" @click="loadProfile(u.id)">
+                {{ profileLoadingId === u.id ? '加载画像…' : '画像' }}
+              </button>
               <button
                 v-if="u.enabled"
                 type="button"
@@ -91,6 +94,54 @@
                 {{ toggleLoadingId === u.id ? '处理中…' : '启用' }}
               </button>
             </span>
+          </div>
+        </div>
+
+        <div class="profile" v-if="selectedProfile || profileError">
+          <div class="card-head">
+            <h3>用户画像</h3>
+            <button v-if="selectedProfile" type="button" class="btn" @click="clearProfile">关闭</button>
+          </div>
+
+          <p v-if="profileError" class="error">{{ profileError }}</p>
+
+          <div v-else-if="selectedProfile" class="profile-body">
+            <div class="profile-grid">
+              <div class="kv"><span class="k">用户</span><span class="v">{{ selectedProfile.username }}（ID: {{ selectedProfile.userId }}）</span></div>
+              <div class="kv"><span class="k">姓名</span><span class="v">{{ selectedProfile.fullName || '-' }}</span></div>
+              <div class="kv"><span class="k">邮箱</span><span class="v">{{ selectedProfile.email || '-' }}</span></div>
+              <div class="kv"><span class="k">风险</span><span class="v">{{ selectedProfile.riskLevel || '-' }}</span></div>
+              <div class="kv"><span class="k">最近PHQ-9</span><span class="v">{{ selectedProfile.lastPhq9Score ?? '-' }} {{ selectedProfile.lastPhq9Severity ? '（' + selectedProfile.lastPhq9Severity + '）' : '' }}</span></div>
+              <div class="kv"><span class="k">最近心情</span><span class="v">{{ selectedProfile.lastMood || '-' }} {{ selectedProfile.lastMoodScore != null ? '（' + selectedProfile.lastMoodScore + '/10）' : '' }}</span></div>
+              <div class="kv"><span class="k">偏好语气</span><span class="v">{{ selectedProfile.preferredTone || '-' }}</span></div>
+              <div class="kv"><span class="k">更新时间</span><span class="v">{{ formatTime(selectedProfile.updatedAt) }}</span></div>
+              <div class="kv"><span class="k">对话推断时间</span><span class="v">{{ formatTime(selectedProfile.lastInsightAt) }}</span></div>
+              <div class="kv"><span class="k">置信度</span><span class="v">{{ selectedProfile.insightConfidence != null ? Number(selectedProfile.insightConfidence).toFixed(2) : '-' }}</span></div>
+              <div class="kv"><span class="k">沟通风格</span><span class="v">{{ selectedProfile.communicationStyle || '-' }}</span></div>
+            </div>
+
+            <div class="block">
+              <div class="k">性格/倾向（推断）</div>
+              <div class="v pre">{{ selectedProfile.personalityNotes || '-' }}</div>
+            </div>
+
+            <div class="block">
+              <div class="k">证据（来自对话）</div>
+              <div class="v pre">{{ selectedProfile.insightEvidence || '-' }}</div>
+            </div>
+
+            <div class="block">
+              <div class="k">目标</div>
+              <div class="v pre">{{ selectedProfile.goals || '-' }}</div>
+            </div>
+            <div class="block">
+              <div class="k">触发点</div>
+              <div class="v pre">{{ selectedProfile.triggers || '-' }}</div>
+            </div>
+            <div class="block">
+              <div class="k">偏好应对方式</div>
+              <div class="v pre">{{ selectedProfile.copingPreferences || '-' }}</div>
+            </div>
           </div>
         </div>
       </section>
@@ -142,6 +193,38 @@ type Article = {
   published: boolean
 }
 
+type UserProfileView = {
+  userId: number
+  username: string
+  fullName?: string | null
+  email?: string | null
+  role?: string | null
+  enabled: boolean
+
+  profileId: number
+  lastPhq9Score?: number | null
+  lastPhq9Severity?: string | null
+  lastPhq9At?: string | null
+
+  lastMood?: string | null
+  lastMoodScore?: number | null
+  lastMoodAt?: string | null
+
+  preferredTone?: string | null
+  goals?: string | null
+  triggers?: string | null
+  copingPreferences?: string | null
+
+  riskLevel?: string | null
+  updatedAt?: string | null
+
+  communicationStyle?: string | null
+  personalityNotes?: string | null
+  insightEvidence?: string | null
+  insightConfidence?: number | null
+  lastInsightAt?: string | null
+}
+
 const auth = useAuthStore()
 const af = authFetch(auth.token)
 
@@ -155,6 +238,10 @@ const usersLoading = ref(false)
 const usersError = ref('')
 const userQuery = ref('')
 const toggleLoadingId = ref<number | null>(null)
+
+const selectedProfile = ref<UserProfileView | null>(null)
+const profileError = ref('')
+const profileLoadingId = ref<number | null>(null)
 
 const articles = ref<Article[]>([])
 const articlesLoading = ref(false)
@@ -195,6 +282,32 @@ const loadUsers = async () => {
     usersError.value = e?.response?.data?.message || e?.message || '加载失败'
   } finally {
     usersLoading.value = false
+  }
+}
+
+const formatTime = (iso?: string | null) => {
+  if (!iso) return '-'
+  try {
+    return new Date(iso).toLocaleString()
+  } catch {
+    return iso
+  }
+}
+
+const clearProfile = () => {
+  selectedProfile.value = null
+  profileError.value = ''
+}
+
+const loadProfile = async (id: number) => {
+  profileLoadingId.value = id
+  profileError.value = ''
+  try {
+    selectedProfile.value = await af(`/admin/users/${id}/profile`)
+  } catch (e: any) {
+    profileError.value = e?.response?.data?.message || e?.message || '加载画像失败'
+  } finally {
+    profileLoadingId.value = null
   }
 }
 
@@ -338,6 +451,64 @@ onMounted(async () => {
   background: rgba(255, 255, 255, 0.12);
   color: var(--color-ink-strong);
   cursor: pointer;
+}
+
+.row-users .btn {
+  margin-right: 0.4rem;
+}
+
+.profile {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.profile-body {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+}
+
+@media (min-width: 980px) {
+  .profile-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.k {
+  color: var(--color-ink-muted);
+}
+
+.v {
+  color: var(--color-ink);
+}
+
+.block {
+  padding: 0.6rem 0.65rem;
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin-top: 0.35rem;
 }
 
 .btn:disabled {

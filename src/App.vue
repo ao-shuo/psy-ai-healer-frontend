@@ -91,7 +91,7 @@ const logout = () => {
   padding: 0.65rem 1rem;
   border-radius: 0.75rem;
   border: 1px solid transparent;
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--surface-2);
   color: var(--color-ink-strong);
   transition: border-color 0.3s ease, transform 0.3s ease;
 }
@@ -101,7 +101,7 @@ const logout = () => {
   padding: 0.65rem 1rem;
   border-radius: 0.75rem;
   border: 1px solid transparent;
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--surface-2);
   color: var(--color-ink-strong);
   cursor: pointer;
   transition: border-color 0.3s ease, transform 0.3s ease;
@@ -124,7 +124,8 @@ const logout = () => {
   gap: 0.1rem;
   padding: 0.35rem 0.9rem;
   border-radius: 0.75rem;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--surface-3);
+  border: 1px solid var(--border-1);
 }
 
 .role-pill {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { authFetch } from '@/services/api'
 import type { ApiFetchOptions } from '@/services/api'
@@ -75,6 +75,24 @@ const creatingSession = ref(false)
 const newMessage = ref('')
 const messageSending = ref(false)
 const lastStrategy = ref('')
+
+const therapyMessagesEl = ref<HTMLElement | null>(null)
+
+const scrollTherapyToBottom = (force = false) => {
+  const el = therapyMessagesEl.value
+  if (!el) return
+
+  if (force) {
+    el.scrollTop = el.scrollHeight
+    return
+  }
+
+  // Keep the view pinned to bottom only if user is already near bottom.
+  const distance = el.scrollHeight - el.scrollTop - el.clientHeight
+  if (distance <= 120) {
+    el.scrollTop = el.scrollHeight
+  }
+}
 
 const knowledgeArticles = ref<KnowledgeArticle[]>([])
 const knowledgeLoading = ref(false)
@@ -214,6 +232,8 @@ const selectSession = async (session?: TherapySession) => {
   if (!session) return
   selectedSessionId.value = session.id
   await fetchSessionMessages(session.id)
+  await nextTick()
+  scrollTherapyToBottom(true)
 }
 
 const fetchTherapySessions = async () => {
@@ -285,6 +305,8 @@ const sendMessage = async () => {
     lastStrategy.value = response.strategy ?? ''
     newMessage.value = ''
     await fetchSessionMessages(selectedSessionId.value)
+    await nextTick()
+    scrollTherapyToBottom(true)
   } catch (error) {
     therapyError.value = (error as Error).message
   } finally {
@@ -327,6 +349,14 @@ watch(
     persistBoardMessages()
   },
   { deep: true },
+)
+
+watch(
+  () => therapyMessages.value.length,
+  async () => {
+    await nextTick()
+    scrollTherapyToBottom()
+  },
 )
 </script>
 
@@ -471,7 +501,7 @@ watch(
             </div>
 
             <div class="chat-column">
-              <div class="message-board">
+              <div ref="therapyMessagesEl" class="message-board">
                 <p v-if="messagesLoading" class="meta">加载消息…</p>
                 <div v-else class="message" :class="[`message--${message.sender?.toLowerCase()}`, message.sender]" v-for="message in therapyMessages" :key="message.id">
                   <span class="message-body">{{ message.content }}</span>
@@ -567,7 +597,7 @@ watch(
   padding: 1.75rem;
   border-radius: 1.5rem;
   background: var(--gradient-slate);
-  box-shadow: 0 40px 60px rgba(6, 20, 40, 0.55);
+  box-shadow: 0 40px 60px rgba(12, 20, 33, 0.12);
   color: var(--color-ink-strong);
 }
 
@@ -590,8 +620,8 @@ watch(
   gap: 0.75rem;
   padding: 0.65rem 1rem;
   border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--surface-3);
+  border: 1px solid var(--border-1);
 }
 
 .page-nav a {
@@ -601,23 +631,23 @@ watch(
   font-size: 0.75rem;
   letter-spacing: 0.15rem;
   color: var(--color-ink-strong);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--surface-2);
   border: 1px solid transparent;
 }
 
 .page-nav a:hover {
-  border-color: rgba(255, 255, 255, 0.4);
+  border-color: var(--border-2);
 }
 
 .hero-sup {
   font-size: 0.9rem;
   letter-spacing: 0.4rem;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--color-ink-muted);
 }
 
 .hero-lead {
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--color-ink-muted);
   max-width: 44ch;
 }
 
@@ -625,8 +655,8 @@ watch(
   width: min(280px, 100%);
   padding: 1.15rem;
   border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: var(--surface-2);
+  border: 1px solid var(--border-1);
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
@@ -636,7 +666,7 @@ watch(
   font-size: 0.8rem;
   letter-spacing: 0.2rem;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.65);
+  color: var(--color-ink-muted);
 }
 
 .hero-value {
@@ -646,7 +676,7 @@ watch(
 
 .hero-meta {
   font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.65);
+  color: var(--color-ink-muted);
 }
 
 .hero-cta {
@@ -663,12 +693,12 @@ watch(
   margin-top: 1rem;
   padding: 1rem 1.25rem;
   border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--surface-2);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--border-1);
 }
 
 .primary {
@@ -709,9 +739,9 @@ watch(
 .panel {
   padding: 1.5rem;
   border-radius: 1.25rem;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 25px 40px rgba(4, 12, 31, 0.35);
+  background: var(--surface-2);
+  border: 1px solid var(--border-1);
+  box-shadow: 0 25px 40px rgba(12, 20, 33, 0.08);
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -741,18 +771,18 @@ watch(
 
 .panel .subtitle {
   font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.65);
+  color: var(--color-ink-muted);
 }
 
 .panel .meta {
   font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--color-ink-muted);
 }
 
 .status-pill {
   padding: 0.35rem 1rem;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  border: 1px solid var(--border-2);
   font-size: 0.85rem;
   letter-spacing: 0.15rem;
   text-transform: uppercase;
@@ -775,7 +805,7 @@ watch(
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
-  background: rgba(0, 0, 0, 0.1);
+  background: var(--surface-1);
   padding: 0.8rem;
   border-radius: 0.9rem;
 }
@@ -790,8 +820,8 @@ watch(
   min-width: 160px;
   padding: 0.5rem 0.7rem;
   border-radius: 0.8rem;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-1);
+  background: var(--surface-1);
   color: var(--color-ink-solid);
 }
 
@@ -834,7 +864,8 @@ watch(
   align-items: center;
   padding: 0.8rem 1rem;
   border-radius: 0.9rem;
-  background: rgba(0, 0, 0, 0.15);
+  background: var(--surface-1);
+  border: 1px solid var(--border-1);
 }
 
 .history-score {
@@ -846,16 +877,16 @@ watch(
 .history-severity {
   margin: 0;
   font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--color-ink-muted);
 }
 
 .history-time {
   font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--color-ink-muted);
 }
 
 .empty {
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--color-ink-muted);
   text-align: center;
   margin: 0.5rem 0;
 }
@@ -876,8 +907,8 @@ watch(
   text-align: left;
   padding: 0.75rem 0.9rem;
   border-radius: 0.9rem;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid transparent;
+  background: var(--surface-1);
+  border: 1px solid var(--border-1);
   color: var(--color-ink-strong);
   cursor: pointer;
   display: flex;
@@ -886,7 +917,7 @@ watch(
 }
 
 .session-item small {
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--color-ink-muted);
 }
 
 .session-item.active {
@@ -897,26 +928,26 @@ watch(
   font-size: 0.75rem;
   letter-spacing: 0.2rem;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--color-ink-muted);
 }
 
 .session-list input {
   padding: 0.65rem 0.9rem;
   border-radius: 0.9rem;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-1);
+  background: var(--surface-1);
   color: var(--color-ink-strong);
 }
 
 .session-list input::placeholder {
-  color: rgba(247, 249, 251, 0.6);
+  color: var(--color-ink-muted);
 }
 
 .ghost {
   padding: 0.5rem 1.1rem;
   border-radius: 0.9rem;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  background: transparent;
+  border: 1px solid var(--border-2);
+  background: var(--surface-3);
   color: var(--color-ink-strong);
   cursor: pointer;
   font-weight: 600;
@@ -940,8 +971,8 @@ watch(
 .message {
   padding: 0.7rem 1rem;
   border-radius: 0.9rem;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--surface-1);
+  border: 1px solid var(--border-1);
 }
 
 .message--user {
@@ -963,14 +994,14 @@ watch(
   width: 100%;
   padding: 0.9rem;
   border-radius: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-1);
+  background: var(--surface-1);
   color: var(--color-ink-strong);
   resize: vertical;
 }
 
 .message-composer textarea::placeholder {
-  color: rgba(247, 249, 251, 0.6);
+  color: var(--color-ink-muted);
 }
 
 .message-composer button {
@@ -988,9 +1019,9 @@ watch(
   width: 100%;
   padding: 1.5rem;
   border-radius: 1.25rem;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 25px 40px rgba(4, 12, 31, 0.35);
+  background: var(--surface-2);
+  border: 1px solid var(--border-1);
+  box-shadow: 0 25px 40px rgba(12, 20, 33, 0.08);
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -1008,15 +1039,15 @@ watch(
 .board-message {
   padding: 0.9rem 1rem;
   border-radius: 0.9rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-1);
+  background: var(--surface-1);
 }
 
 .board-message-header {
   display: flex;
   justify-content: space-between;
   font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.65);
+  color: var(--color-ink-muted);
   margin-bottom: 0.25rem;
 }
 
@@ -1030,14 +1061,14 @@ watch(
   width: 100%;
   padding: 0.9rem;
   border-radius: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-1);
+  background: var(--surface-1);
   color: var(--color-ink-strong);
   resize: vertical;
 }
 
 .message-form textarea::placeholder {
-  color: rgba(247, 249, 251, 0.6);
+  color: var(--color-ink-muted);
 }
 
 .message-form button {
@@ -1053,7 +1084,7 @@ watch(
 
 .strategy {
   font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--color-ink-muted);
   text-transform: uppercase;
   letter-spacing: 0.1rem;
 }
@@ -1067,8 +1098,8 @@ watch(
 .filter {
   padding: 0.4rem 0.8rem;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  background: transparent;
+  border: 1px solid var(--border-1);
+  background: var(--surface-3);
   color: var(--color-ink-strong);
   cursor: pointer;
 }
@@ -1088,8 +1119,8 @@ watch(
 .article-card {
   padding: 1rem;
   border-radius: 1rem;
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--surface-1);
+  border: 1px solid var(--border-1);
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
@@ -1101,12 +1132,12 @@ watch(
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.1rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--color-ink-muted);
 }
 
 .article-content {
   font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--color-ink);
 }
 
 @media (max-width: 900px) {

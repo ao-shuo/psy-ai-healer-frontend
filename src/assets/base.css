@@ -1,16 +1,26 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@400;600&display=swap');
 
 :root {
-  --color-background: #050914;
-  --color-ink: #f7f9fb;
-  --color-ink-strong: #ffffff;
+  /* Light, calming theme (reuses existing palette tokens) */
+  --color-background: #f7f9fb;
+  --color-ink: #0c1421;
+  --color-ink-strong: #0c1421;
   --color-ink-solid: #0c1421;
-  --color-ink-muted: rgba(247, 249, 251, 0.8);
+  --color-ink-muted: rgba(12, 20, 33, 0.68);
   --color-accent: #b8ff7a;
   --gradient-sage: linear-gradient(140deg, #e0ffd8 0%, #85e2b3 55%, #7cbdd7 100%);
-  --gradient-slate: radial-gradient(circle at 10% 20%, rgba(97, 187, 255, 0.45), transparent 45%),
-    linear-gradient(135deg, #080f1f 0%, #0d1b2b 50%, #041027 100%);
-  --panel-border: rgba(255, 255, 255, 0.15);
+  --gradient-slate: radial-gradient(circle at 10% 20%, rgba(126, 200, 255, 0.25), transparent 55%),
+    radial-gradient(circle at 85% 15%, rgba(184, 255, 122, 0.18), transparent 50%),
+    linear-gradient(135deg, #f7f9fb 0%, #e0ffd8 45%, #f7f9fb 100%);
+
+  /* Shared surfaces & borders for page components */
+  --surface-1: rgba(255, 255, 255, 0.8);
+  --surface-2: rgba(255, 255, 255, 0.66);
+  --surface-3: rgba(255, 255, 255, 0.5);
+  --border-1: rgba(12, 20, 33, 0.12);
+  --border-2: rgba(12, 20, 33, 0.18);
+
+  --panel-border: var(--border-1);
   --section-gap: 160px;
 }
 
@@ -37,8 +47,8 @@ body::before {
   content: '';
   position: fixed;
   inset: 0;
-  background: radial-gradient(circle at top right, rgba(184, 255, 122, 0.25), transparent 35%),
-    radial-gradient(circle at 20% 80%, rgba(126, 200, 255, 0.2), transparent 25%);
+  background: radial-gradient(circle at top right, rgba(184, 255, 122, 0.14), transparent 38%),
+    radial-gradient(circle at 20% 80%, rgba(126, 200, 255, 0.16), transparent 30%);
   pointer-events: none;
   z-index: 0;
 }

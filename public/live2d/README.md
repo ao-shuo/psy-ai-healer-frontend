@@ -3,7 +3,7 @@
 把你的 Live2D 模型文件放到这个目录下，然后在页面中加载它。
 
 默认加载路径：
-- `/live2d/model.json`
+- `/live2d/mao_pro/mao_pro.model3.json`（示例模型）
 
 你可以通过 URL 参数指定：
 - `/live2d?model=/live2d/xxx/your.model3.json`
